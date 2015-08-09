@@ -3,7 +3,7 @@
 
 So far, just one experiment:
 
-I wanted to learn more about how cryptography works so I read [https://tools.ietf.org/html/rfc1321](RFC 1321) where the MD5 hashing function is described and implemented it myself in ruby.
+I wanted to learn more about how cryptography works so I read [RFC 1321](https://tools.ietf.org/html/rfc1321) where the MD5 hashing function is described and implemented it myself in ruby.
 
 
 ### TODO:
