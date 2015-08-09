@@ -1,8 +1,9 @@
-require 'pp'
+Encoding.default_internal = Encoding::BINARY
+Encoding.default_external = Encoding::BINARY
 
 module JG
   class MD5
-    PAD_BYTE = "\x80" # 0b10000000
+    PAD_BYTE = "\x80"
     A = "\x67\x45\x23\x01"
     B = "\xef\xcd\xab\x89"
     C = "\x98\xba\xdc\xfe"
@@ -13,7 +14,6 @@ module JG
     end
 
     def hexdigest
-      #digested_words.map(&:to_s).map(&:reverse).join.unpack("H*").first
       digested_words.map(&:to_hex).join
     end
 
@@ -29,6 +29,7 @@ module JG
         cc = c
         dd = d
 
+
         a, b, c, d = rounds(a, b, c, d, x)
 
         # add the original values from this iteration of loop to the
@@ -43,17 +44,13 @@ module JG
     end
 
     def words
-      bytes.each_byte.each_slice(4).map{ |n| MD5Word.new(n.pack("CCCC")) }
+      bytes.each_byte.each_slice(4).map do |four|
+        MD5Word.new(four.reverse.pack("CCCC"))
+      end
     end
 
     def padding
-      puts (PAD_BYTE + zero_bytes).force_encoding("BINARY").length
-      # puts (PAD_BYTE + zero_bytes + terminator).force_encoding("BINARY").length
-      # puts (PAD_BYTE + zero_bytes + terminator).force_encoding("BINARY").inspect
-      (PAD_BYTE + zero_bytes).each_char.each_slice(4).map do |four|
-        four.reverse.join
-      end.join
-      #(PAD_BYTE + zero_bytes).reverse
+      PAD_BYTE + zero_bytes
     end
 
     def bytes
@@ -69,13 +66,13 @@ module JG
                      56 + (64 - tail_length)
                    end
 
-      Array.new(pad_length - 1) { 0b00000000 }.pack("C*")
+      Array.new(pad_length - 1) { 0 }.pack("C*")
     end
 
     def terminator
-      [@input.size].pack("Q<")
+      # why do I have to shift over 3 bits here? I have no idea.
+      [@input.size << 3].pack("Q<")
     end
-
 
     def rounds(a, b, c, d, x)
       ROUNDS.each do |data|
@@ -86,24 +83,11 @@ module JG
           k = data[:k][i]
           t = T[data[:t][i]]
 
-          # puts "ROUND#{round}:#{i}"
-          # puts "ROUND#{round}: k=#{k} s=#{s} ti=#{t}"
-          # puts "  a=#{a.inspect} b=#{b.inspect} c=#{c.inspect} d=#{d.inspect}"
-          # puts "  x[k]=#{x[k].inspect}"
-          # puts "  Ti=#{t.inspect}"
-          # puts "  #{data[:method]}(b,c,d)=#{MD5Word.send(data[:method], b,c,d).inspect}"
-          # puts "  a+f(bcd)+ti = #{(a + MD5Word.send(data[:method], b,c,d) + t).inspect}"
-          # puts "  a+f(bcd)+xk+ti = #{(a + MD5Word.send(data[:method], b,c,d) + x[k] + t).inspect}"
-          # puts "        a=#{a.to_s} b=#{b.to_s} c=#{c.to_s} d=#{d.to_s}"
-
           a = (b + (a + MD5Word.send(data[:method], b,c,d) + x[k] + t).rotate_left(s))
+
           a, b, c, d = [a, b, c, d].rotate(-1)
         end
-        puts "ROUND#{round} COMPLETE:"
-        puts "a = #{a.inspect}"
-        puts "b = #{b.inspect}"
-        puts "c = #{c.inspect}"
-        puts "d = #{d.inspect}"
+
       end
       [a, b, c, d]
     end
@@ -111,16 +95,6 @@ module JG
 
   end
 
-
-  # class MD5Byte
-  #   def initialize(char)
-  #     @char = char
-  #   end
-
-  #   def to_i
-  #     @char.ord
-  #   end
-  # end
 
   class MD5Word
     def initialize(bytes)
@@ -151,8 +125,6 @@ module JG
     def rotate_left(n)
       new_int = (((self.to_i) << (n)) | ((self.to_i) >> (32 - (n))))
       MD5Word.new(MD5Word.integer_to_bytes(new_int))
-      # pp "N is #{n}"
-      # MD5Word.new(MD5Word.integer_to_bytes(n))
     end
 
     class << self
@@ -190,15 +162,6 @@ module JG
     end
   end
 end
-
-
-
-
-
-
-
-
-
 
 
 
@@ -258,13 +221,9 @@ T = [
   "\x6f\xa8\x7e\x4f", "\xfe\x2c\xe6\xe0", "\xa3\x01\x43\x14", "\x4e\x08\x11\xa1",
   "\xf7\x53\x7e\x82", "\xbd\x3a\xf2\x35", "\x2a\xd7\xd2\xbb", "\xeb\x86\xd3\x91"
 ].map do |bytes|
-  JG::MD5Word.new(bytes.force_encoding("BINARY"))
+  JG::MD5Word.new(bytes)
 end
 
 
 
-m = JG::MD5.new("")
-# pp m.words
-# pp m.words.map(&:to_i)
-# pp m.digested_words
-pp m.hexdigest
+puts JG::MD5.new(ARGV[0].encode("BINARY")).hexdigest
